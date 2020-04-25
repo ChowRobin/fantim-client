@@ -108,12 +108,15 @@ export const updateFriendApply = (applyId, status) => {
                     openNotification('申请通过', '您与对方已成为好友')
                     // 刷新好友列表
                     fetchFriendList(loginUserId)
+                    fetchFriendApply(true, 1, 10)
                     break
                    case 2: 
                     openNotification('拒绝成功', '已拒绝好友申请')
+                    fetchFriendApply(false, 1, 10)
                     break
                    case 3:
                     openNotification('取消成功', '好友申请已取消')
+                    fetchFriendApply(true, 1, 10)
                     break
                }
             } else {

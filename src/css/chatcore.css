@@ -175,6 +175,55 @@
      left: -60px;
 }
 
+.its-g{
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    margin-left: 80px;
+    margin-top: 30px;
+ }
+ 
+ .its-g .info{
+    display: inline-block;
+    border-radius: 5px;
+    background-color: #f3f3f3;
+    font-size: 16px;
+    padding: 12px;
+    margin-top: 30px;
+    margin-left: -41px;
+ }
+ 
+ .its-g .info::before{
+    content: '';
+    border-left: 0px solid #f3f3f3;
+    border-bottom:15px solid #f3f3f3;
+    border-bottom-left-radius: 15px 20px;
+    height: 20px;
+    width: 20px;
+    position: absolute;
+    top: -5px;
+    left: -12px;
+    z-index: -1;
+ }
+ 
+ .its-g > img:last-child{
+     width: 40px;
+     height: 40px;
+     position: absolute;
+     top: 0px;
+     left: -60px;
+}
+
+ 
+.its-g > avatar:last-child{
+    width: 40px;
+    height: 40px;
+    position: absolute;
+    top: 0px;
+    left: -60px;
+}
+
+
 .sys{
     display: flex;
     justify-content: center;

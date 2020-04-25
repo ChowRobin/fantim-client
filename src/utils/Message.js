@@ -35,6 +35,13 @@ export const handleNewMsg = (oldConversations, index, msgList) => {
         conversations[curConversationId].otherUserId = item.receiver
       }
     }
+    if (curConversationType == 1 && conversations[curConversationId].groupId == undefined) {
+      // 群聊
+      let convIdArr = curConversationId.split(':')
+      if (convIdArr.length > 1) {
+        conversations[curConversationId].groupId = convIdArr[1]
+      }
+    }
     conversations[curConversationId].lastTime = timestampToTime(item.create_time)
     if (conversations[curConversationId].messages == undefined) {
       conversations[curConversationId].messages = []
@@ -89,13 +96,42 @@ export const fillFriendToConversation = (friends, oldConversations) => {
   let convMap = {...oldConversations} 
   for (let convId in convMap) {
     let conv = convMap[convId]
-    if (conv.otherUserId != undefined) {
-      let userInfo = friends[conv.otherUserId]
-      if (userInfo != undefined) {
-        conv.otherNickname = userInfo.nickname
-        conv.Avatar = userInfo.avatar
-      } else {
-        conv.otherNickname = '陌生人'
+    // 私聊
+    if (conv.conversationType == undefined || conv.conversationType == 0) {
+      if (conv.otherUserId != undefined) {
+        let userInfo = friends[conv.otherUserId]
+        if (userInfo != undefined) {
+          conv.otherNickname = userInfo.nickname
+          conv.Avatar = userInfo.avatar
+        } else {
+          conv.otherNickname = '陌生人'
+        }
+      }
+    } else if (conv.conversationType == 1) { // 群聊
+      // conv.otherNickname = '群聊'
+    }
+    convMap[convId] = conv
+  }
+  return convMap
+}
+
+
+export const fillGroupToConversation = (groups, oldConversations) => {
+  if (groups == undefined) {
+    return oldConversations
+  }
+  let convMap = {...oldConversations} 
+  for (let convId in convMap) {
+    let conv = convMap[convId]
+    if (conv.conversationType == 1) { // 群聊
+      if (conv.otherUserId != undefined) {
+        let groupInfo = groups[conv.groupId]
+        if (groupInfo != undefined) {
+          conv.otherNickname = groupInfo.name
+          conv.Avatar = groupInfo.avatar
+        } else {
+          conv.otherNickname = '群聊'
+        }
       }
     }
     convMap[convId] = conv
@@ -111,7 +147,30 @@ export const genConversationId = (uid1, uid2) => {
   }
 }
 
-export const handleSelectConv = (convId, friendId, oldConversations) => {
+export const handleSelectConv = (convId, friendId, oldConversations, userInfos) => {
+  if (oldConversations[convId] != undefined && oldConversations[convId] != null) {
+    return oldConversations 
+  } else {
+    let convs = {...oldConversations}
+    let nickname = '好友'
+    if (userInfos != undefined && userInfos[friendId] != undefined) {
+      nickname = userInfos[friendId].nickname 
+    }
+    // 没有选中的会话，创建
+    let conv = {
+      conversationId: convId,
+      conversationType: 0, 
+      otherUserId: friendId,
+      otherNickname: nickname,
+      lastTime: timestampToTime(Date.parse(new Date())/1000)
+    }
+    convs[convId] = conv
+    return convs
+  }
+}
+
+export const handleSelectGroupConv = (groupId, oldConversations) => {
+  let convId = '1:' + groupId
   if (oldConversations[convId] != undefined && oldConversations[convId] != null) {
     return oldConversations 
   } else {
@@ -119,8 +178,9 @@ export const handleSelectConv = (convId, friendId, oldConversations) => {
     // 没有选中的会话，创建
     let conv = {
       conversationId: convId,
-      conversationType: 0, 
-      otherUserId: friendId
+      conversationType: 1, 
+      groupId: groupId,
+      lastTime: timestampToTime(Date.parse(new Date())/1000)
     }
     convs[convId] = conv
     return convs

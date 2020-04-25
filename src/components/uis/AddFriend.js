@@ -120,7 +120,7 @@ export default class AddFriend extends React.Component {
   }
   
   render() {
-    const { friends, userInfos, myApplys, otherApplys } = this.props
+    const { friends, userInfos, myApplys, otherApplys} = this.props
 
     // 处理搜索数据
     let searchUserResult = []

@@ -42,11 +42,11 @@ export default class SignUp extends React.Component {
 
 
         const layout = {
-            labelCol: { span: 8 },
+            labelCol: { span: 4 },
             wrapperCol: { span: 16 },
           };
         const tailLayout = {
-        wrapperCol: { offset: 8, span: 16 },
+        wrapperCol: { offset: 4, span: 16 },
         };
           
         const onFinish = values => {

@@ -8,7 +8,9 @@ import file from '../../img/file.png';
 import EmojiPicker from './EmojiPicker';
 import { regPayload } from '../../utils/PayloadReg';
 import FileUpload from './FileUpload';
-import { Button } from 'antd';
+import { Button, PageHeader, Dropdown, Menu } from 'antd';
+import {EllipsisOutlined } from '@ant-design/icons';
+import { fetchUser } from '../../utils/Friend';
 
 export default class ChatCore extends React.Component {
     constructor(props) {
@@ -54,7 +56,9 @@ export default class ChatCore extends React.Component {
             alert('输入内容不能为空');
             return;
         }
-        this.props.sendMessage(value,this.props.toId);
+        let curConv = this.props.curConversation
+        this.props.sendMessage({conversationType: curConv.conversationType, content: value},this.props.toId);
+        // this.props.sendMessage(value,this.props.toId);
         this.areaRef.current.value = '';
     }
 
@@ -71,34 +75,141 @@ export default class ChatCore extends React.Component {
             alert('输入内容不能为空');
             return;
         }
-        this.props.sendMessage(value,this.props.toId);
+        let curConv = this.props.curConversation
+        this.props.sendMessage({conversationType: curConv.conversationType, content: value},this.props.toId);
         this.areaRef.current.value = '';
     }
 
     render() {
         //注意：在数组中使用Spread syntax（扩展语法）注意要判 `null | undefined`
         //参考：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax#Only_for_iterables
-        const {myHeader=userHeader, itsHeader=consultantHeader, contentHeight, textInputHeight, sendMessage, toId, curConversation} = this.props;
+        const {myHeader=userHeader, itsHeader=consultantHeader, contentHeight, textInputHeight, sendMessage, toId, curConversation, userInfos, groups} = this.props;
 
         let msgList = []
-        if (curConversation != undefined && curConversation.messages != undefined) {
+        let curConvType = 0
+        let curUserId 
+        let curGroupId
+        let headerName
+        if (curConversation != undefined) {
+            curUserId = curConversation.otherUserId
+            curGroupId = curConversation.groupId
             msgList = curConversation.messages
+            curConvType = curConversation.conversationType
+
+            if (curConvType == 1 && msgList != undefined) {
+                msgList.map(({sender})=>{
+                    if (userInfos[sender]==undefined) {
+                        fetchUser(sender)
+                    }
+                })
+            }
+
+            headerName = ''
+            if (curConvType == 0 && userInfos[curUserId] != undefined) {
+                headerName = userInfos[curUserId].nickname
+            } else if (curConvType == 1 && groups[curGroupId] != undefined) {
+                headerName = groups[curGroupId].name
+            }
+
         }
 
+        const SingleMenu = (
+            <Menu>
+              <Menu.Item>
+                <a target="_blank" rel="noopener noreferrer" href="http://www.alipay.com/">
+                  好友资料
+                </a>
+              </Menu.Item>
+              <Menu.Item>
+                <a target="_blank" rel="noopener noreferrer" href="http://www.taobao.com/">
+                  聊天记录
+                </a>
+              </Menu.Item>
+            </Menu>
+          );
+
+        const GroupMenu = (
+            <Menu>
+              <Menu.Item>
+                <a target="_blank" rel="noopener noreferrer" href="http://www.alipay.com/">
+                    群资料
+                </a>
+              </Menu.Item>
+              <Menu.Item>
+                <a target="_blank" rel="noopener noreferrer" href="http://www.taobao.com/">
+                    聊天记录
+                </a>
+              </Menu.Item>
+            </Menu>
+          );
+
+        const DropdownMenu = () => {
+            if (curConvType == 1) {
+                return (
+                <Dropdown key="more" overlay={GroupMenu}>
+                    <Button
+                    style={{
+                        border: 'none',
+                        padding: 0,
+                    }}
+                    >
+                    <EllipsisOutlined
+                        style={{
+                        fontSize: 20,
+                        verticalAlign: 'top',
+                        }}
+                    />
+                    </Button>
+                </Dropdown>
+                );
+            } else if (curConvType == 0) {
+                return (
+                    <Dropdown key="more" overlay={SingleMenu}>
+                        <Button
+                        style={{
+                            border: 'none',
+                            padding: 0,
+                        }}
+                        >
+                        <EllipsisOutlined
+                            style={{
+                            fontSize: 20,
+                            verticalAlign: 'top',
+                            }}
+                        />
+                        </Button>
+                    </Dropdown>
+                    );
+            }
+            return null
+          };
+
         return <div id="chat_core_body">
+            <PageHeader
+                className="site-page-header"
+                // onBack={() => null}
+                title={headerName}
+                style={{border:'1px solid rgb(235, 237, 240)'}}
+                extra={[
+                    <DropdownMenu key="more" />,
+                ]}
+            />
             <div id="content" ref={this.scrollRef} style={{height:contentHeight}}>
                 <div id="content-internal">
                     {
-                        /** 
-                        messages.map(({ of, date, payload }, index) => (
-                            <div className={of} key={date + index}>
-                                <div className="info">{regPayload(payload, this.scrollEnd)}</div>
-                                <img alt='' src={of==='my'?myHeader:(of==='its'?itsHeader:'')}/>
+                        curConvType == 0 && msgList != undefined && msgList.map(({ myself, createTime, content }, index) => (
+                            <div className={myself?'my':'its'} key={createTime + index}>
+                                <div className="info">{regPayload(content, this.scrollEnd)}</div>
+                                <img alt='' src={myself?myHeader:itsHeader}/>
                             </div>
                         ))
-                        */
-                        msgList.map(({ myself, createTime, content }, index) => (
-                            <div className={myself?'my':'its'} key={createTime + index}>
+
+                    }
+                    {
+                        curConvType == 1 && msgList != undefined && msgList.map(({ myself, sender, createTime, content }, index) => (
+                            <div className={myself?'my':'its-g'} key={createTime + index}>
+                                {/* <Avatar size={50}>{userInfos[sender]!=undefined?userInfos[sender].nickname:'me'}</Avatar> */}
+                                <span>{!myself?userInfos[sender]!=undefined?userInfos[sender].nickname:'陌生人':''}</span>
                                 <div className="info">{regPayload(content, this.scrollEnd)}</div>
                                 <img alt='' src={myself?myHeader:itsHeader}/>
                             </div>

@@ -40,6 +40,23 @@ export const friendApi = {
     } 
 }
 
+/**
+ * 群聊api
+ */
+export const groupApi = {
+    domain: 'http://localhost:8080',
+    action: {
+        list: '/group/list/',
+        create: '/group/create/',
+        memberList: '/group/member/list/',
+        applyUpdate: '/group/apply/update/',
+        apply: '/relation/apply/create/',
+        applyList: '/relation/apply/list/',
+        search: '/group/search/'
+    } 
+}
+
+
 export const userApi = {
     domain: 'http://localhost:8080',
     action: {

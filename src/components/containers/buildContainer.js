@@ -54,6 +54,8 @@ const buildContainer = (id, uiComponent) => {
         userInfos: state.userInfos,
         myApplys: state.myApplys,
         otherApplys: state.otherApplys,
+        groups: state.groups,
+        searchGroups: state.searchGroups,
     });
     //dispatch to props
     const mapDispatchToProps = (dispatch) => ({
@@ -63,7 +65,8 @@ const buildContainer = (id, uiComponent) => {
             if (toId == 0 || toId == "") {
                toId = "0:1234:5678" 
             }
-            let msg = JSON.stringify({push_type:1, body:{content: payload, msg_type: 1, conversation_id: toId, sender: userId}})
+            let msg = JSON.stringify({push_type:1, body:{content: payload.content, msg_type: 1, 
+                conversation_type: payload.conversationType, conversation_id: toId, sender: userId}})
             sock.send(msg)
         },
     });

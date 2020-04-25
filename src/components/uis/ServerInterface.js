@@ -1,18 +1,19 @@
 import React from 'react';
 import logo from '../../img/interface.png';
 import userHeader from '../../img/user-header.png';
+import groupIcon from '../../img/group_icon.png';
 import consultantHeader from '../../img/consultant-header.png';
 import '../../css/server-interface.css';
 import '../../css/app.css';
 import { Button, Avatar, Collapse, Dropdown, Menu} from 'antd';
-import { PlusOutlined, UserOutlined} from '@ant-design/icons';
+import { TeamOutlined, DownOutlined, UserOutlined} from '@ant-design/icons';
 import ChatCore from './ChatCore';
 import Friends from './Friends';
-import LeftNavigator from './LeftNavigator';
-import { generalFetch } from '../../utils/Utils';
+import Groups from './Groups';
 import {pullAllMsg} from '../../utils/Message'
 import store from '../../utils/Store';
 import {fetchFriendList, fetchUser} from '../../utils/Friend'
+import {fetchGroups} from '../../utils/Group'
 import AddFriend from './AddFriend'
 import AddGroup from './AddGroup'
 
@@ -26,6 +27,7 @@ export default class ServerInterface extends React.Component {
         fetchUser(userId) 
         pullAllMsg(userId)
         fetchFriendList(userId)
+        fetchGroups(userId)
         // mock
     }
 
@@ -46,7 +48,7 @@ export default class ServerInterface extends React.Component {
     }
 
     render() {
-        const { conversations, sendMessage, toId, friends, userInfos, myApplys, otherApplys } = this.props;
+        const { conversations, sendMessage, toId, friends, userInfos, myApplys, otherApplys, groups, searchGroups } = this.props;
 
         const { Panel } = Collapse;
 
@@ -54,14 +56,26 @@ export default class ServerInterface extends React.Component {
         let curConversation = conversations[toId]
         let userId = parseInt(window.localStorage.getItem("userId"))
 
-        const allConvDiv = Object.entries(conversations)
+        let allConvDiv = Object.entries(conversations)
             .sort(([, v1], [, v2]) => v2.lastTime.localeCompare(v1.lastTime))
             .map(([k, v], index) =>
                 <div className="body_center_first" style={{backgroundColor:k===toId?'#b0ceff':''}} key={k} id={k} onClick={this.openService}>
-                    <div className="body_center_first_header"><img alt="用户头像" src={userHeader} /></div>
+                    <div className="body_center_first_header">
+                        {
+                            v.conversationType==0&&<img alt="用户头像" src={userHeader} />
+                        }
+                        {
+                            v.conversationType==1&&<Avatar ><TeamOutlined /></Avatar>
+                        }
+                    </div>
                     <div className="body_center_first_body">
                         <div className="body_top">
-                            <div>{friends[v.otherUserId]!=undefined?friends[v.otherUserId].nickname:'陌生人'}</div>
+                            {
+                                v.conversationType==0&&<div>{userInfos[v.otherUserId]!=undefined?userInfos[v.otherUserId].nickname:'好友'}</div>
+                            }
+                            {
+                                v.conversationType==1&&<div>{groups[v.groupId]!=undefined?groups[v.groupId].name:'群聊'}</div>
+                            }
                             <div>{v.lastTime}</div>
                         </div>
                         <div className="body_bottom">
@@ -73,6 +87,9 @@ export default class ServerInterface extends React.Component {
 
         const avatarMenu = (
             <Menu>
+                <Menu.Item >
+                    用户信息
+                </Menu.Item>
                 <Menu.Item onClick={e => window.Location.href='/'}>
                 <a target="_self" rel="noopener noreferrer" href="/">
                     退出登陆 
@@ -92,17 +109,16 @@ export default class ServerInterface extends React.Component {
                     <Dropdown overlay={avatarMenu}>
                         <Avatar size={50}>{userInfos[userId]!=undefined?userInfos[userId].nickname:'me'}</Avatar>
                     </Dropdown>
-                    
                 </div>
             </div>
             <div id="interface_body" >
-                <div id="body_left"><LeftNavigator /></div>
+                {/* <div id="body_left"><LeftNavigator /></div> */}
                 <div id="body_center">
                     <div id="body_center_first">{allConvDiv}</div>
                     <div id="body_center_second">
                         <ChatCore contentHeight='590px' textInputHeight='160px'
                             myHeader={consultantHeader} itsHeader={userHeader}
-                            {...{ toId, sendMessage, curConversation}} />
+                            {...{ userInfos, toId, sendMessage, curConversation, groups}} />
                     </div>
                     <div id="body_center_third">
                     <Collapse style={{width:'333px', 'border-radius':'15px'}} bordered={false} defaultActiveKey={['1']}>
@@ -111,7 +127,8 @@ export default class ServerInterface extends React.Component {
                             <AddFriend {...{friends, userInfos, myApplys, otherApplys}} />
                         </Panel>
                         <Panel header="我的群聊" key="2">
-                            <AddGroup {...{friends, userInfos, myApplys, otherApplys}} />
+                            <Groups {...{groups}} /> 
+                            <AddGroup {...{userInfos, myApplys, otherApplys, groups, searchGroups, friends}} />
                         </Panel>
                     </Collapse>
                     </div>

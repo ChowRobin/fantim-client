@@ -1,10 +1,16 @@
 import React from 'react';
-import { Drawer, Form, Button, Col, Row, Input, Select, DatePicker, Menu, Table } from 'antd';
-import { PlusOutlined, MailOutlined, AppstoreOutlined, SearchOutlined  } from '@ant-design/icons';
-import {fetchUser, fetchFriendApply} from '../../utils/Friend'
+import { Drawer, Form, Button, Col, Row, Input, Select, Modal, Menu, Table, Transfer } from 'antd';
+import { PlusOutlined, MailOutlined, ExclamationCircleOutlined, SearchOutlined  } from '@ant-design/icons';
+import {searchGroup, fetchGroupApply, createGroupApply, updateGroupApply} from '../../utils/Group'
+import {generalFetch, httpGet, openNotification} from '../../utils/Utils' 
+import { fetchUser } from '../../utils/Friend'
+import {groupApi} from '../../utils/GlobalConfig'
 
+const { confirm } = Modal
 const { Option } = Select;
 const { Search } = Input;
+
+const {domain, action} = groupApi;
 
 export default class AddGroup extends React.Component {
     constructor(props) {
@@ -12,12 +18,22 @@ export default class AddGroup extends React.Component {
         this.showDrawer = this.showDrawer.bind(this);
         this.onClose = this.onClose.bind(this);
         this.handleClickMenu = this.handleClickMenu.bind(this);
-        this.searchUser= this.searchUser.bind(this);
         this.fetchApplyList= this.fetchApplyList.bind(this);
+
+        this.handleChange= this.handleChange.bind(this);
+        this.handleSearch= this.handleSearch.bind(this);
+        this.filterOption= this.filterOption.bind(this);
+        this.getFriendList= this.getFriendList.bind(this);
+        this.componentDidMount= this.componentDidMount.bind(this);
+
         this.state =  {
             visible: false,
-            current: 'searchUser',
-            searchUserId: 0,
+            current: 'searchGroup',
+            searchKey: '',
+
+            mockData: [],
+            friendList: [],
+            targetKeys: [],
         };
 
     }
@@ -41,14 +57,6 @@ export default class AddGroup extends React.Component {
     });
   };
 
-  searchUser(e) {
-      let searchId = parseInt(e)
-      if (searchId == undefined || searchId == 0) {
-          return
-      }
-      this.state.searchUserId = searchId
-      fetchUser(searchId)
-  }
 
   fetchApplyList(e) {
       let key = e.key
@@ -58,68 +66,137 @@ export default class AddGroup extends React.Component {
       } else if (key == 'myApply') {
           isMy = true
       }
-      fetchFriendApply(isMy, 1, 10)
+      fetchGroupApply(isMy, 1, 10)
   }
 
-  render() {
-    const { friends, userInfos, myApplys, otherApplys } = this.props
+  showGroupApplyConfirm(userId) {
+    confirm({
+      title: '入群申请',
+      icon: <ExclamationCircleOutlined />,
+      content: '确认申请加入群聊？',
+      type: 'link',
+      onOk() {
+        createGroupApply(userId)
+      },
+      onCancel() {
+      },
+    });
+  }
 
-    // 处理搜索数据
-    let searchUserResult = []
-    let searchUserById = {}
-    if (userInfos != undefined && this.state.searchUserId != 0) {
-        let searchUserInfo = userInfos[this.state.searchUserId]
-        let friendUserInfo = friends[this.state.searchUserId]
-        let userStatus = '陌生人'
-        if (friendUserInfo != undefined && friendUserInfo != null) {
-            userStatus = '好友'
-        }
-        if (searchUserInfo != undefined) {
-            searchUserById = {
-                userId: searchUserInfo.user_id,
-                nickname: searchUserInfo.nickname,
-                status: userStatus
-            }
-            // console.log('search_user=', searchUserById)
-            searchUserResult.push(searchUserById)
-        }
-    }
+  showRefuseApplyConfirm(applyId) {
+    confirm({
+      title: '拒绝申请',
+      icon: <ExclamationCircleOutlined />,
+      content: '确认拒绝对方的入群申请？',
+      type: 'link',
+      onOk() {
+        updateGroupApply(applyId, 2)
+      },
+      onCancel() {
+      },
+    });
+  }
 
-    let myApplyList = [], otherApplyList = []
-    // 处理申请列表
-    if (myApplys != undefined && myApplys[1] != undefined && myApplys[1].applys) {
-        myApplys[1].applys.map(function({from_user_id, to_user_id, status}, arr) {
-            let userId = to_user_id
-            let userInfo = userInfos[userId]
-            let nickname
-            if (userInfo != undefined) {
-                nickname = userInfo.nickname
-            }
-            let userStatus = '等待同意'
-            switch (status) {
-                case 1:
-                    userStatus = '已同意'
-                    break
-                case 2:
-                    userStatus = '已拒绝'
-                    break
-                case 3:
-                    userStatus = '已取消'
-                    break
-            }
-            myApplyList.push({
-                userId: userId,
-                nickname: nickname,
-                status: userStatus,
-            })
+  showPassApplyConfirm(applyId) {
+    confirm({
+      title: '通过申请',
+      icon: <ExclamationCircleOutlined />,
+      content: '确认添加对方进入群聊？',
+      type: 'link',
+      onOk() {
+        updateGroupApply(applyId, 1)
+      },
+      onCancel() {
+      },
+    });
+  }
+
+  filterOption (inputValue, option) {
+    // option.description.indexOf(inputValue) > -1;
+  }
+
+  handleChange (targetKeys) {
+    this.setState({ targetKeys });
+  };
+
+  handleSearch (dir, value) {
+    console.log('search:', dir, value);
+  };
+
+  componentDidMount() {
+    this.getFriendList();
+  }
+
+  getFriendList(){
+
+    let friendList = []
+    let friends = this.props.friends
+    if (friends != undefined) {
+      Object.values(friends).map((item, arr)=>{
+        friendList.push({
+          key: item.user_id,
+          title: item.nickname,
         })
+      })
     }
-    if (otherApplys != undefined && otherApplys[1] != undefined && otherApplys[1].applys) {
-        otherApplys[1].applys.map(function({from_user_id, to_user_id, status}, arr) {
+    this.setState({friendList:friendList})
+    // this.setState({ mockData, targetKeys });
+  };
+
+  render() {
+    const { userInfos, myApplys, otherApplys, groups, searchGroups, friends } = this.props
+
+    const searchGroupByKey = (e) => {
+      let searchKey = e
+      if (searchKey == undefined || searchKey == 0) {
+          return
+      }
+      this.state.searchKey = searchKey
+      searchGroup(searchKey, 1, 10)
+    }
+    
+    let myApplyList = [], otherApplyList = []
+   // 处理申请列表
+   if (myApplys != undefined && myApplys[2] != undefined && myApplys[2].applys) {
+    myApplys[2].applys.map(function({apply_id, from_user_id, to_user_id, status, group_info}, arr) {
+        if (status == undefined) {
+            status = 0
+        }
+        let groupName
+        if (group_info != undefined) {
+          groupName = group_info.name
+        }
+        let userStatus = '等待同意'
+        switch (status) {
+            case 1:
+                userStatus = '已同意'
+                break
+            case 2:
+                userStatus = '已拒绝'
+                break
+            case 3:
+                userStatus = '已取消'
+                break
+        }
+        myApplyList.push({
+            applyId: apply_id,
+            groupName: groupName,
+            status: status,
+            userStatus: userStatus
+        })
+      })
+    }
+    if (otherApplys != undefined && otherApplys[2] != undefined && otherApplys[2].applys) {
+        otherApplys[2].applys.map(function({apply_id, from_user_id, to_user_id, status, group_info}, arr) {
+            if (status == undefined) {
+                status = 0
+            }
             let userId = from_user_id
             let userInfo = userInfos[userId]
             let nickname
-            if (userInfo != undefined) {
+            if (userInfo == undefined) {
+                fetchUser(userId)
+            } else {
                 nickname = userInfo.nickname
             }
             let userStatus = '等待同意'
@@ -135,9 +212,12 @@ export default class AddGroup extends React.Component {
                     break
             }
             otherApplyList.push({
+                applyId: apply_id,
                 userId: userId,
                 nickname: nickname,
-                status: userStatus,
+                groupName: group_info.name,
+                status: status,
+                userStatus: userStatus
             })
         })
     }
@@ -145,6 +225,11 @@ export default class AddGroup extends React.Component {
 
     const otherApplyColumns = [
         {
+          title: '群名称',
+          dataIndex: 'groupName',
+          key: 'groupName',
+        },
+        {
           title: '用户Id',
           dataIndex: 'userId',
           key: 'userId',
@@ -159,14 +244,20 @@ export default class AddGroup extends React.Component {
           title: '状态',
           dataIndex: 'status',
           key: 'status',
+          render: (text, record)  => (
+              <span>
+              {record.userStatus} 
+              </span>
+          )
         },
         {
           title: '操作',
           key: 'action',
           render: (text, record) => (
             <span>
-              <a style={{ marginRight: 16 }}>同意</a>
-              <a>拒绝</a>
+              <a style={{ marginRight: 16 }} hidden={record.status!=0} onClick={this.showPassApplyConfirm.bind(this, record.applyId)}>同意</a>
+              <a style={{ marginRight: 16 }} hidden={record.status!=0} onClick={this.showRefuseApplyConfirm.bind(this, record.applyId)}>拒绝</a>
+              <a style={{ marginRight: 16 }} hidden={record.status==0} >删除</a>
             </span>
           ),
         },
@@ -174,59 +265,95 @@ export default class AddGroup extends React.Component {
 
     const myApplyColumns = [
         {
-          title: '用户Id',
-          dataIndex: 'userId',
-          key: 'userId',
-          render: text => <a>{text}</a>,
-        },
-        {
-          title: '昵称',
-          dataIndex: 'nickname',
-          key: 'nickname',
+          title: '群名称',
+          dataIndex: 'groupName',
+          key: 'groupName',
         },
         {
           title: '状态',
           dataIndex: 'status',
           key: 'status',
+          render: (text, record)  => (
+            <span>
+            {record.userStatus} 
+            </span>
+          )
         },
         {
           title: '操作',
           key: 'action',
           render: (text, record) => (
             <span>
-              <a>取消</a>
+              <a style={{ marginRight: 16 }} hidden={record.status!=0}>取消</a>
+              <a style={{ marginRight: 16 }} hidden={record.status!=1}>删除</a>
             </span>
           ),
         },
     ];
 
-    const searchUserColumns = [
+
+    const searchGroupColumns = [
         {
-          title: '用户Id',
-          dataIndex: 'userId',
-          key: 'userId',
-          render: text => <a>{text}</a>,
-        },
-        {
-          title: '昵称',
-          dataIndex: 'nickname',
-          key: 'nickname',
+          title: '群名称',
+          dataIndex: 'name',
+          key: 'name',
         },
         {
           title: '状态',
-          dataIndex: 'status',
-          key: 'status',
+          dataIndex: 'role',
+          key: 'role',
+          render: (text, record)  => (
+            <span>
+             <span hidden={record.user_role!=0}>未入群</span>
+             <span hidden={record.user_role==0}>已入群</span>
+            </span>
+          )
         },
         {
           title: '操作',
           key: 'action',
           render: (text, record) => (
             <span>
-              <a>申请好友</a>
+              <a style={{ marginRight: 16 }} hidden={record.user_role!=0} onClick={this.showGroupApplyConfirm.bind(this, record.group_id_str)}>加群</a>
+              <a style={{ marginRight: 16 }} hidden={record.user_role<1}>发起聊天</a>
             </span>
           ),
         },
     ];
+
+    const layout = {
+      labelCol: { span: 4 },
+      wrapperCol: { span: 16 },
+    };
+    const tailLayout = {
+      wrapperCol: { offset: 4, span: 12 },
+    };
+
+
+
+    const onFinish = values => {
+
+      generalFetch(
+          domain+action.create,
+          {name: values.name, description: values.description, members: values.members},
+          (result) => {
+             if (result.status_code == 0){
+                 openNotification('创建成功', '群聊已创建')
+              } else {
+                 openNotification('操作失败', '请稍后重试')
+              }
+              
+          }
+      )
+
+          this.setState({visible:false})
+      };
+        
+      const onFinishFailed = errorInfo => {
+          console.log('Failed:', errorInfo);
+    };
+
+
 
     return (
       <div>
@@ -242,7 +369,7 @@ export default class AddGroup extends React.Component {
         >
 
         <Menu onClick={this.handleClickMenu} selectedKeys={[this.state.current]} mode="horizontal">
-        <Menu.Item key="searchUser">
+        <Menu.Item key="searchGroup">
           <SearchOutlined />
           搜索群聊
         </Menu.Item>
@@ -260,17 +387,17 @@ export default class AddGroup extends React.Component {
         </Menu.Item>
         </Menu>
 
-        {this.state.current=='searchUser' && <div>
+        {this.state.current=='searchGroup' && <div>
           <br />
           <br />  
           <Search
-            placeholder="用户id"
-            onSearch={this.searchUser}
+            placeholder="请输入群名称"
+            onSearch={searchGroupByKey}
             style={{ width: 400 }}
           />
           <br />
           <br /> 
-           <Table columns={searchUserColumns} dataSource={searchUserResult} />
+           <Table columns={searchGroupColumns} dataSource={searchGroups} />
           <br />
           <br />
         </div>}
@@ -291,10 +418,60 @@ export default class AddGroup extends React.Component {
           <br />
         </div>}
 
+        {this.state.current=='createGroup' && <div>
+          <br />
+          <br />  
+          <Form
+              {...layout}
+              name="basic"
+              initialValues={{ remember: true }}
+              onFinish={onFinish}
+              onFinishFailed={onFinishFailed}
+              >
+              <Form.Item
+                  label="群名称"
+                  name="name"
+                  rules={[{ required: true, message: '请输入群名称' }]}
+              >
+                  <Input style={{width: "200px"}}/>
+              </Form.Item>
+
+              <Form.Item
+                  label="群简介"
+                  name="description"
+                  rules={[{ required: true, message: '请输入群简介' }]}
+              >
+                  <Input />
+              </Form.Item>
+
+              <Form.Item
+                label="群成员"
+                name="members"
+                rules={[{ required: false, message: '请加入群成员' }]}
+              >
+              <Transfer
+                dataSource={this.state.friendList}
+                showSearch
+                filterOption={this.filterOption}
+                targetKeys={this.state.targetKeys}
+                onChange={this.handleChange}
+                onSearch={this.handleSearch}
+                render={item => item.title}
+                locale={{itemUnit:'人', itemsUnit:'人', searchPlaceholder:'请输入好友昵称'}}
+              />
+              </Form.Item>
+
+              <Form.Item {...tailLayout}>
+                  <Button type="primary" size="middle" htmlType="submit">
+                     创建 
+                  </Button>
+              </Form.Item>
+          </Form>
+          <br />
+          <br />
+        </div>}
         </Drawer>
       </div>
     );
   }
 }
-
-// ReactDOM.render(<DrawerForm />, mountNode);
