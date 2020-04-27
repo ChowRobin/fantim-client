@@ -4,7 +4,7 @@ import {globalState, groupApi, userApi} from './GlobalConfig'
 
 const {domain, action} = groupApi;
 
-export const fetchGroups = (userId) => {
+export const fetchGroups = () => {
 
     httpGet(
         domain+action.list,

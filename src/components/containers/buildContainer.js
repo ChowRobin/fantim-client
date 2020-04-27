@@ -56,6 +56,7 @@ const buildContainer = (id, uiComponent) => {
         otherApplys: state.otherApplys,
         groups: state.groups,
         searchGroups: state.searchGroups,
+        searchMsgList: state.searchMsgList,
     });
     //dispatch to props
     const mapDispatchToProps = (dispatch) => ({

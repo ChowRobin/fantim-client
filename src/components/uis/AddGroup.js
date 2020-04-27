@@ -1,7 +1,7 @@
 import React from 'react';
 import { Drawer, Form, Button, Col, Row, Input, Select, Modal, Menu, Table, Transfer } from 'antd';
 import { PlusOutlined, MailOutlined, ExclamationCircleOutlined, SearchOutlined  } from '@ant-design/icons';
-import {searchGroup, fetchGroupApply, createGroupApply, updateGroupApply} from '../../utils/Group'
+import {searchGroup, fetchGroupApply, createGroupApply, updateGroupApply, fetchGroups} from '../../utils/Group'
 import {generalFetch, httpGet, openNotification} from '../../utils/Utils' 
 import { fetchUser } from '../../utils/Friend'
 import {groupApi} from '../../utils/GlobalConfig'
@@ -21,7 +21,7 @@ export default class AddGroup extends React.Component {
         this.fetchApplyList= this.fetchApplyList.bind(this);
 
         this.handleChange= this.handleChange.bind(this);
-        this.handleSearch= this.handleSearch.bind(this);
+        this.handleSearchFriend= this.handleSearchFriend.bind(this);
         this.filterOption= this.filterOption.bind(this);
         this.getFriendList= this.getFriendList.bind(this);
         this.componentDidMount= this.componentDidMount.bind(this);
@@ -119,8 +119,7 @@ export default class AddGroup extends React.Component {
     this.setState({ targetKeys });
   };
 
-  handleSearch (dir, value) {
-    console.log('search:', dir, value);
+  handleSearchFriend (dir, value) {
   };
 
   componentDidMount() {
@@ -339,6 +338,8 @@ export default class AddGroup extends React.Component {
           (result) => {
              if (result.status_code == 0){
                  openNotification('创建成功', '群聊已创建')
+                 this.setState({visible:false})
+                  fetchGroups()
               } else {
                  openNotification('操作失败', '请稍后重试')
               }
@@ -346,7 +347,7 @@ export default class AddGroup extends React.Component {
           }
       )
 
-          this.setState({visible:false})
+
       };
         
       const onFinishFailed = errorInfo => {

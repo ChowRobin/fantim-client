@@ -1,5 +1,5 @@
 import { combineReducers } from 'redux';
-import {handleNewMsg, fillFriendToConversation, fillGroupToConversation, handleSelectConv, handleSelectGroupConv} from './Message'
+import {handleNewMsg, handleOldMsg, fillFriendToConversation, fillGroupToConversation, handleSelectConv, handleSelectGroupConv} from './Message'
 import {addUser} from './Friend'
 import { searchGroup } from './Group';
 
@@ -45,6 +45,10 @@ const searchGroups = [
   /// [groups]
 ]
 
+const searchMsgList = [
+  /// [{}]
+]
+
 export const init_state = {
     toId: '',//会话对象
     conversations,
@@ -53,7 +57,8 @@ export const init_state = {
     myApplys,
     otherApplys,
     groups, 
-    searchGroups, 
+    searchGroups,
+    searchMsgList,
 };
 
 /**
@@ -76,11 +81,10 @@ const allReducers = {
       return old;
     },
     conversations(olds=conversations, {type, payload={}}) {
-      const {index, msgList, friends, selectConvId, friendId, groupId} = payload
+      const {index, msgList, friends, selectConvId, friendId, groupId, init} = payload
       switch (type) {
         case 'NEW':
-          let newConv = handleNewMsg(olds, index, msgList) 
-          return newConv
+          return handleNewMsg(olds, index, msgList, init) 
         case 'FRIENDS':
           return fillFriendToConversation(friends, olds)
         case 'GROUPS':
@@ -89,6 +93,8 @@ const allReducers = {
           return handleSelectConv(selectConvId, friendId, olds, userInfos)
         case 'SELECT_GROUP':
           return handleSelectGroupConv(groupId, olds)
+        case 'OLD':
+          return handleOldMsg(olds, index, msgList)
       }
       return olds
     },
@@ -139,15 +145,27 @@ const allReducers = {
       return old
     },
     groups(old = groups, {type, payload={}}){
-      const {groups, searchGroups} = payload
+      const {groups, searchGroups, groupId, groupMembers} = payload
       if(type === 'GROUPS')
         return groups;
+      else if (type === 'GROUP_MEMBER') {
+        let newGroups = {...old}
+        newGroups[groupId].members = groupMembers
+        return newGroups
+      }
       return old 
     },
     searchGroups(old = searchGroups, {type, payload={}}) {
       const {groups, searchGroups} = payload
       if (type === 'SEARCH_GROUP') {
         return searchGroups!=undefined?searchGroups:null
+      }
+      return old
+    },
+    searchMsgList(old =searchMsgList, {type, payload={}}) {
+      const {searchMsg} = payload
+      if (type === 'SEARCH_MSG') {
+        return searchMsg
       }
       return old
     }

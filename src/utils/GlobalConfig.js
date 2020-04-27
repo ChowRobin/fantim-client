@@ -23,7 +23,8 @@ export const chat = {
 export const msgApi = {
     domain: 'http://localhost:8080',
     action: {
-        pull: '/message/pull/'
+        pull: '/message/pull/',
+        search: '/message/search/'
     } 
 }
 

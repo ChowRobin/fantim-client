@@ -8,20 +8,28 @@ import file from '../../img/file.png';
 import EmojiPicker from './EmojiPicker';
 import { regPayload } from '../../utils/PayloadReg';
 import FileUpload from './FileUpload';
-import { Button, PageHeader, Dropdown, Menu } from 'antd';
-import {EllipsisOutlined } from '@ant-design/icons';
+import ChatHistory from './ChatHistory';
+import { Button, PageHeader, Dropdown, Menu, Modal, Divider, Avatar, List } from 'antd';
+import {EllipsisOutlined, UserOutlined } from '@ant-design/icons';
 import { fetchUser } from '../../utils/Friend';
+import {fetchGroupMembers} from '../../utils/Group'
 
 export default class ChatCore extends React.Component {
     constructor(props) {
         super(props);
         this.areaRef = React.createRef();
         this.scrollRef = React.createRef();
+        this.componentDidUpdate = this.componentDidUpdate.bind(this)
 
         this.sendEmoji = this.sendEmoji.bind(this);
         this.sendMessage = this.sendMessage.bind(this);
         this.sendMessage0 = this.sendMessage0.bind(this);
+        this.setHistoryVisible = this.setHistoryVisible.bind(this);
 
+        this.state =  {
+            gProfileVisible: false, // 群资料模态框
+            historyVisible: false,
+        };
     }
 
     componentDidMount() {
@@ -80,16 +88,27 @@ export default class ChatCore extends React.Component {
         this.areaRef.current.value = '';
     }
 
+    setHistoryVisible (value) {
+        if (value==undefined) {
+            value = true
+        }
+        this.setState({
+            historyVisible: value 
+        })
+    }
+
     render() {
         //注意：在数组中使用Spread syntax（扩展语法）注意要判 `null | undefined`
         //参考：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax#Only_for_iterables
-        const {myHeader=userHeader, itsHeader=consultantHeader, contentHeight, textInputHeight, sendMessage, toId, curConversation, userInfos, groups} = this.props;
+        const {myHeader=userHeader, itsHeader=consultantHeader, contentHeight, textInputHeight, 
+            sendMessage, toId, curConversation, userInfos, groups, searchMsgList} = this.props;
 
         let msgList = []
         let curConvType = 0
         let curUserId 
-        let curGroupId
+        let curGroupId, curGroup
         let headerName
+        let groupMemberData = []
         if (curConversation != undefined) {
             curUserId = curConversation.otherUserId
             curGroupId = curConversation.groupId
@@ -108,6 +127,22 @@ export default class ChatCore extends React.Component {
             if (curConvType == 0 && userInfos[curUserId] != undefined) {
                 headerName = userInfos[curUserId].nickname
             } else if (curConvType == 1 && groups[curGroupId] != undefined) {
+                curGroup = groups[curGroupId]
+                if (curGroup.members === undefined) {
+                    fetchGroupMembers(curGroupId)
+                } else {
+                    curGroup.members.map((item, index)=>{
+                        let role = '群成员'
+                        if (item.user_role === 2) {
+                            role = '群主'
+                        }
+                        groupMemberData.push({
+                            userId: item.user_info.user_id,
+                            nickname: item.user_info.nickname,
+                            role: role,
+                        })
+                    }) 
+                }
                 headerName = groups[curGroupId].name
             }
 
@@ -116,12 +151,12 @@ export default class ChatCore extends React.Component {
         const SingleMenu = (
             <Menu>
               <Menu.Item>
-                <a target="_blank" rel="noopener noreferrer" href="http://www.alipay.com/">
+                <a >
                   好友资料
                 </a>
               </Menu.Item>
               <Menu.Item>
-                <a target="_blank" rel="noopener noreferrer" href="http://www.taobao.com/">
+                <a onClick={()=>{this.setState({historyVisible:true})}}>
                   聊天记录
                 </a>
               </Menu.Item>
@@ -131,12 +166,12 @@ export default class ChatCore extends React.Component {
         const GroupMenu = (
             <Menu>
               <Menu.Item>
-                <a target="_blank" rel="noopener noreferrer" href="http://www.alipay.com/">
+                <a onClick={()=>{this.setState({gProfileVisible:true})}}>
                     群资料
                 </a>
               </Menu.Item>
               <Menu.Item>
-                <a target="_blank" rel="noopener noreferrer" href="http://www.taobao.com/">
+                <a onClick={()=>{this.setState({historyVisible:true})}}>
                     聊天记录
                 </a>
               </Menu.Item>
@@ -144,25 +179,7 @@ export default class ChatCore extends React.Component {
           );
 
         const DropdownMenu = () => {
-            if (curConvType == 1) {
-                return (
-                <Dropdown key="more" overlay={GroupMenu}>
-                    <Button
-                    style={{
-                        border: 'none',
-                        padding: 0,
-                    }}
-                    >
-                    <EllipsisOutlined
-                        style={{
-                        fontSize: 20,
-                        verticalAlign: 'top',
-                        }}
-                    />
-                    </Button>
-                </Dropdown>
-                );
-            } else if (curConvType == 0) {
+            if (curConvType == 0) {
                 return (
                     <Dropdown key="more" overlay={SingleMenu}>
                         <Button
@@ -180,12 +197,31 @@ export default class ChatCore extends React.Component {
                         </Button>
                     </Dropdown>
                     );
-            }
+            } else if (curConvType == 1) {
+                return (
+                <Dropdown key="more" overlay={GroupMenu}>
+                    <Button
+                    style={{
+                        border: 'none',
+                        padding: 0,
+                    }}
+                    >
+                    <EllipsisOutlined
+                        style={{
+                        fontSize: 20,
+                        verticalAlign: 'top',
+                        }}
+                    />
+                    </Button>
+                </Dropdown>
+                );
+            } 
             return null
           };
 
         return <div id="chat_core_body">
-            <PageHeader
+            {
+                curConversation!=undefined&&<PageHeader
                 className="site-page-header"
                 // onBack={() => null}
                 title={headerName}
@@ -193,12 +229,13 @@ export default class ChatCore extends React.Component {
                 extra={[
                     <DropdownMenu key="more" />,
                 ]}
-            />
+                />
+            }   
             <div id="content" ref={this.scrollRef} style={{height:contentHeight}}>
                 <div id="content-internal">
                     {
-                        curConvType == 0 && msgList != undefined && msgList.map(({ myself, createTime, content }, index) => (
-                            <div className={myself?'my':'its'} key={createTime + index}>
+                        curConvType == 0 && msgList != undefined && msgList.map(({ myself, content, msg_id_str }, index) => (
+                            <div className={myself?'my':'its'} key={msg_id_str}>
                                 <div className="info">{regPayload(content, this.scrollEnd)}</div>
                                 <img alt='' src={myself?myHeader:itsHeader}/>
                             </div>
@@ -206,9 +243,8 @@ export default class ChatCore extends React.Component {
 
                     }
                     {
-                        curConvType == 1 && msgList != undefined && msgList.map(({ myself, sender, createTime, content }, index) => (
-                            <div className={myself?'my':'its-g'} key={createTime + index}>
-                                {/* <Avatar size={50}>{userInfos[sender]!=undefined?userInfos[sender].nickname:'me'}</Avatar> */}
+                        curConvType == 1 && msgList != undefined && msgList.map(({ myself, sender, msg_id_str, content }, index) => (
+                            <div className={myself?'my':'its-g'} key={ msg_id_str}>
                                 <span>{!myself?userInfos[sender]!=undefined?userInfos[sender].nickname:'陌生人':''}</span>
                                 <div className="info">{regPayload(content, this.scrollEnd)}</div>
                                 <img alt='' src={myself?myHeader:itsHeader}/>
@@ -239,6 +275,38 @@ export default class ChatCore extends React.Component {
                 发送 
                 </Button>
             </div>
+            {
+            curGroup!=undefined&&<Modal
+                    title="群资料"
+                    visible={this.state.gProfileVisible}
+                    footer={[]}
+                    closable={false}
+                    onCancel={()=>{this.setState({gProfileVisible:false})}}
+                >
+                <h3>{curGroup.name}</h3>
+                <span>{curGroup.description}</span>
+                <Divider>群成员</Divider>
+                {
+                    <List
+                    itemLayout="horizontal"
+                    dataSource={groupMemberData}
+                    size="small"
+                    renderItem={item => (
+                      <List.Item>
+                        <List.Item.Meta
+                          avatar={<Avatar><UserOutlined /></Avatar>}
+                          title={item.nickname}
+                          description={item.role}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                }
+            </Modal>
+            }
+            <ChatHistory contentHeight='590px' textInputHeight='160px' setHistoryVisible={this.setHistoryVisible}
+                         historyVisible={this.state.historyVisible}   myHeader={consultantHeader} itsHeader={userHeader}
+                        {...{ userInfos, toId, sendMessage, curConversation, groups, searchMsgList}}/>
         </div>;
     }
 }

@@ -5,7 +5,7 @@ import groupIcon from '../../img/group_icon.png';
 import consultantHeader from '../../img/consultant-header.png';
 import '../../css/server-interface.css';
 import '../../css/app.css';
-import { Button, Avatar, Collapse, Dropdown, Menu} from 'antd';
+import { Button, Avatar, Collapse, Dropdown, Menu, Empty, Badge} from 'antd';
 import { TeamOutlined, DownOutlined, UserOutlined} from '@ant-design/icons';
 import ChatCore from './ChatCore';
 import Friends from './Friends';
@@ -27,7 +27,7 @@ export default class ServerInterface extends React.Component {
         fetchUser(userId) 
         pullAllMsg(userId)
         fetchFriendList(userId)
-        fetchGroups(userId)
+        fetchGroups()
         // mock
     }
 
@@ -48,7 +48,7 @@ export default class ServerInterface extends React.Component {
     }
 
     render() {
-        const { conversations, sendMessage, toId, friends, userInfos, myApplys, otherApplys, groups, searchGroups } = this.props;
+        const { conversations, sendMessage, toId, friends, userInfos, myApplys, otherApplys, groups, searchGroups, searchMsgList } = this.props;
 
         const { Panel } = Collapse;
 
@@ -67,6 +67,9 @@ export default class ServerInterface extends React.Component {
                         {
                             v.conversationType==1&&<Avatar ><TeamOutlined /></Avatar>
                         }
+                        <Badge count={v.unReadCount} overflowCount={99} offset={[5,-10]}>
+                            <a href="#" className="head-example" />
+                        </Badge>
                     </div>
                     <div className="body_center_first_body">
                         <div className="body_top">
@@ -114,11 +117,20 @@ export default class ServerInterface extends React.Component {
             <div id="interface_body" >
                 {/* <div id="body_left"><LeftNavigator /></div> */}
                 <div id="body_center">
-                    <div id="body_center_first">{allConvDiv}</div>
+                    <div id="body_center_first">
+                        {
+                            JSON.stringify(conversations)=="{}"&&
+                            <div>
+                                <br /><br /><br /><br />
+                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂时没有会话～快去找好友聊天吧"/>
+                            </div>
+                        }
+                        {allConvDiv}
+                    </div>
                     <div id="body_center_second">
                         <ChatCore contentHeight='590px' textInputHeight='160px'
                             myHeader={consultantHeader} itsHeader={userHeader}
-                            {...{ userInfos, toId, sendMessage, curConversation, groups}} />
+                            {...{ userInfos, toId, sendMessage, curConversation, groups, searchMsgList}} />
                     </div>
                     <div id="body_center_third">
                     <Collapse style={{width:'333px', 'border-radius':'15px'}} bordered={false} defaultActiveKey={['1']}>

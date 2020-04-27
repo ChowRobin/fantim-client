@@ -1,11 +1,11 @@
 import store from './Store';
 import timestampToTime from './date'
-import {generalFetch} from './Utils' 
+import {generalFetch, httpGet, openNotification} from './Utils' 
 import {globalState, msgApi, friendApi} from './GlobalConfig'
 
 const {domain, action} = msgApi;
 
-export const handleNewMsg = (oldConversations, index, msgList) => {
+export const handleNewMsg = (oldConversations, index, msgList, init) => {
   let cursor = parseInt(window.localStorage.getItem("cursor"))
   let userId = window.localStorage.getItem("userId")
   let conversations = {...oldConversations}
@@ -23,6 +23,14 @@ export const handleNewMsg = (oldConversations, index, msgList) => {
         conversationId: curConversationId,
         conversationType: curConversationType,
         messages: []
+      }
+    }
+
+    if (init === undefined || init === false) {
+      if (conversations[curConversationId].unReadCount == undefined) {
+        conversations[curConversationId].unReadCount = 1
+      } else {
+        conversations[curConversationId].unReadCount++
       }
     }
   
@@ -65,7 +73,7 @@ export const pullAllMsg = (userId) => {
         let allMsg  = result.message_list
         if (allMsg != undefined && allMsg.length > 0) {
           // console.log("dispatch=", allMsg) 
-          store.dispatch({type: 'NEW', payload: {index: allMsg.length-1, msgList: allMsg}})
+          store.dispatch({type: 'NEW', payload: {index: allMsg.length-1, msgList: allMsg, init: true}})
         }
         // 选中最新的会话
         let topTime = 0
@@ -79,7 +87,9 @@ export const pullAllMsg = (userId) => {
             topConvId = item.conversation_id
           }
         })
-        store.dispatch({type: 'SELECT', payload: {selectConvId: topConvId}})
+        if (topConvId !== undefined && topConvId !== null) {
+          store.dispatch({type: 'SELECT', payload: {selectConvId: topConvId}})
+        }
        } else {
           alert('历史消息拉取失败')
        }
@@ -149,6 +159,12 @@ export const genConversationId = (uid1, uid2) => {
 
 export const handleSelectConv = (convId, friendId, oldConversations, userInfos) => {
   if (oldConversations[convId] != undefined && oldConversations[convId] != null) {
+    if (oldConversations[convId].unReadCount != undefined && oldConversations[convId].unReadCount > 0) {
+      let newConversations = {...oldConversations}
+      newConversations[convId] = oldConversations[convId]
+      newConversations[convId].unReadCount = 0
+      return newConversations
+    }
     return oldConversations 
   } else {
     let convs = {...oldConversations}
@@ -172,6 +188,12 @@ export const handleSelectConv = (convId, friendId, oldConversations, userInfos) 
 export const handleSelectGroupConv = (groupId, oldConversations) => {
   let convId = '1:' + groupId
   if (oldConversations[convId] != undefined && oldConversations[convId] != null) {
+    if (oldConversations[convId].unReadCount != undefined && oldConversations[convId].unReadCount > 0) {
+      let newConversations = {...oldConversations}
+      newConversations[convId] = oldConversations[convId]
+      newConversations[convId].unReadCount = 0
+      return newConversations
+    }
     return oldConversations 
   } else {
     let convs = {...oldConversations}
@@ -185,4 +207,96 @@ export const handleSelectGroupConv = (groupId, oldConversations) => {
     convs[convId] = conv
     return convs
   }
+}
+
+// 处理历史消息
+export const handleOldMsg = (oldConversations, index, msgList) => {
+  if (msgList === undefined) {
+    return oldConversations
+  }
+  let cursor = parseInt(window.localStorage.getItem("cursor"))
+  let userId = window.localStorage.getItem("userId")
+  let conversations = {...oldConversations}
+
+  // 排序
+  const oldMsgCompare = (val1,val2) => {
+    return val1.create_time-val2.create_time;
+  };
+  msgList.sort(oldMsgCompare)
+
+  let curConversationId
+  let newMsgList = []
+  msgList.map(function(item ,index, arr) { 
+    curConversationId = item.conversation_id
+    let curConversationType = item.conversation_type
+    let curConv = conversations[curConversationId]
+
+    // 一系列初始化操作
+    if (curConv == undefined) {
+      if (curConversationType == undefined) {
+        curConversationType = 0
+      }
+      curConv = {
+        conversationId: curConversationId,
+        conversationType: curConversationType,
+        messages: []
+      }
+    }
+
+    item.myself = item.sender == userId
+    // 处理otherUserId
+    if (curConv.otherUserId == undefined) {
+      if (!item.myself) {
+        curConv.otherUserId = item.sender
+      } else if (item.receiver != undefined) {
+        curConv.otherUserId = item.receiver
+      }
+    }
+    if (curConversationType == 1 && curConv.groupId == undefined) {
+      // 群聊
+      let convIdArr = curConversationId.split(':')
+      if (convIdArr.length > 1) {
+        curConv.groupId = convIdArr[1]
+      }
+    }
+    if (curConv.messages == undefined) {
+      curConv.messages = []
+    }
+    //  一系列初始化操作结束
+    conversations[curConversationId] = curConv
+
+    newMsgList.push(item)
+  })
+  conversations[curConversationId].messages = [...newMsgList, ...oldConversations[curConversationId].messages]
+  
+  return conversations
+};
+
+
+
+export const searchMsg = (key, convId, cursor, count) => {
+     
+  httpGet(
+    domain+action.search,
+    (result) => {
+       if (result.status_code === 0){
+         let msgList = []
+          if (result.message_list != undefined) {
+            result.message_list.map((item, index)=>{
+              item.start_pos = item.content.indexOf(key)
+              item.end_pos = item.start_pos + key.length
+              let target = "<span style='color:orange;'>" + key + "</span>"
+              item.content = item.content.replace(key, target)
+              msgList.push(item)
+            })
+          }
+        //  console.log('search msg list=', msgList)
+         store.dispatch({type: 'SEARCH_MSG', payload: {searchMsg: msgList}})
+       } else {
+          openNotification('消息搜索失败', '请稍后重试')
+       }
+    },
+    {key: key, cursor: cursor, count: count, conversation_id: convId},
+  ); 
+
 }
